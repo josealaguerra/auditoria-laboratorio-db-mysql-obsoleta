@@ -1,64 +1,116 @@
-# auditoria-laboratorio-db-mysql-obsoleta
-Vamos a desplegar una versión de MySQL (versión 5.7, que ya está "End of Life", lo que agrega una vulnerabilidad real de obsolescencia) configurada intencionalmente de forma insegura.
+# Auditoría Laboratorio DB MySQL Obsoleta
 
-# 4. Despliegue del Escenario
-Abre tu terminal (PowerShell, CMD o Terminal), navega hasta la carpeta laboratorio-auditoria y ejecuta:
+Este proyecto despliega un entorno de laboratorio para simular una base de datos MySQL vulnerable, utilizando una versión obsoleta (MySQL 5.7, que ha alcanzado su "End of Life"). El objetivo es demostrar vulnerabilidades comunes en configuraciones inseguras de bases de datos, como contraseñas débiles, exposición de puertos estándar y falta de cifrado en reposo.
 
-Bash
-docker-compose up -d
+## Requisitos Previos
 
-Esto descargará la imagen y levantará el contenedor en segundo plano.
+Antes de comenzar, asegúrate de tener instalados los siguientes componentes en tu sistema:
 
-5. Guía de Verificación (Replicando la Auditoría)
-Ahora actuarás como el auditor para confirmar que el entorno cumple con las condiciones de la Cédula HALL-01.
+- **Docker**: Versión 20.10 o superior.
+- **Docker Compose**: Versión 1.29 o superior.
+- **Nmap** (opcional): Para pruebas de escaneo de puertos.
+- **Cliente MySQL**: Para conectarte a la base de datos (puedes usar el cliente de línea de comandos o herramientas como MySQL Workbench).
 
-Prueba A: Verificar Puerto Estándar y Versión (Nmap)
-Si tienes Nmap instalado (o desde tu Kali Linux), ejecuta:
+Puedes verificar las versiones instaladas con:
+```bash
+docker --version
+docker-compose --version
+```
 
-Bash
+## Instalación y Despliegue
+
+1. Clona o descarga este repositorio en tu máquina local.
+2. Navega al directorio del proyecto:
+   ```bash
+   cd auditoria-laboratorio-db-mysql-obsoleta
+   ```
+3. Ejecuta el siguiente comando para levantar el contenedor en segundo plano:
+   ```bash
+   docker-compose up -d
+   ```
+
+Esto descargará la imagen de MySQL 5.7 y configurará el contenedor con las vulnerabilidades intencionales.
+
+> **Nota**: Si encuentras un error de puerto ocupado (puerto 3306), detén cualquier otro servicio que lo esté usando o modifica el puerto en `docker-compose.yml`.
+
+## Guía de Verificación (Replicando la Auditoría)
+
+Actúa como auditor para confirmar que el entorno cumple con las condiciones de vulnerabilidad. A continuación, se detallan pruebas para verificar las configuraciones inseguras.
+
+### Prueba A: Verificar Puerto Estándar y Versión (Nmap)
+
+Escanea el puerto 3306 para confirmar la exposición del servicio:
+
+```bash
 nmap -sV -p 3306 localhost
-Resultado esperado: Verás el puerto 3306/tcp open y la versión MySQL 5.7.x, confirmando la exposición del servicio estándar.
+```
 
-Prueba B: Verificar Acceso Root y Credenciales Débiles
-Intenta conectarte desde tu máquina "atacante" (tu PC o una VM):
+**Resultado esperado**: El puerto 3306/tcp estará abierto y mostrará la versión MySQL 5.7.x, confirmando la exposición del servicio estándar.
 
-Bash
+### Prueba B: Verificar Acceso Root y Credenciales Débiles
+
+Intenta conectarte a la base de datos usando las credenciales débiles:
+
+```bash
 mysql -h localhost -u root -p
-Cuando te pida contraseña, escribe: root
+```
 
-Resultado esperado: Acceso exitoso al shell de MySQL (mysql>). Esto confirma que la cuenta root es accesible remotamente (o al menos desde fuera del contenedor) y usa una contraseña trivial.
+Cuando se solicite la contraseña, ingresa: `root`
 
-Prueba C: Verificar Falta de Cifrado en Reposo (TDE)
-Para esta prueba, simularemos el acceso físico al servidor.
+**Resultado esperado**: Acceso exitoso al shell de MySQL (`mysql>`). Esto confirma que la cuenta root es accesible remotamente con una contraseña trivial.
 
-En tu carpeta laboratorio-auditoria, verás que se creó una carpeta llamada mysql_data.
+Para el usuario adicional:
+```bash
+mysql -h localhost -u admin_remoto -p
+```
 
-Entra en mysql_data/ferreteria_db.
+Contraseña: `password123`
 
-Verás archivos con extensión .ibd (ej. db.opt o tablas que crees).
+### Prueba C: Verificar Falta de Cifrado en Reposo (TDE)
 
-Abre uno de esos archivos con un editor de texto o hexadecimal. Aunque verás símbolos extraños, si insertaras datos de texto, podrías encontrar cadenas legibles o patrones claros.
+Simula el acceso físico al servidor inspeccionando los archivos de datos.
 
-Evidencia Técnica:
-Para confirmar técnicamente que TDE (Transparent Data Encryption) está apagado, entra a MySQL (paso B) y ejecuta:
+1. Navega a la carpeta `mysql_data` creada en el directorio del proyecto.
+2. Entra en `mysql_data/ferreteria_db`.
+3. Abre un archivo con extensión `.ibd` (por ejemplo, `db.opt` o archivos de tablas) con un editor de texto o hexadecimal.
+4. Observa que los datos no están cifrados; podrías ver cadenas legibles si se insertaron datos de texto.
 
-SQL
+**Evidencia técnica**:
+Conéctate a MySQL (como en la Prueba B) y ejecuta:
+
+```sql
 SHOW VARIABLES LIKE 'have_openssl';
 SHOW VARIABLES LIKE 'innodb_encrypt_tables';
-Resultado esperado: innodb_encrypt_tables estará en OFF. Esto es la evidencia para tu cédula de "Datos no cifrados en reposo".
+```
 
-6. Datos de Prueba (Opcional)
-Para darle realismo, puedes insertar datos "sensibles" una vez conectado:
+**Resultado esperado**: `innodb_encrypt_tables` estará en `OFF`, confirmando la falta de cifrado en reposo.
 
-SQL
+## Datos de Prueba (Opcional)
+
+Para añadir realismo, inserta datos sensibles una vez conectado:
+
+```sql
 USE ferreteria_db;
 CREATE TABLE tarjetas_credito (id INT, titular VARCHAR(100), numero VARCHAR(20));
 INSERT INTO tarjetas_credito VALUES (1, 'Juan Perez', '4500-1234-5678-9010');
-Esto te servirá si luego usas herramientas como Wireshark para capturar el tráfico y ver estos datos pasar en texto plano (otra vulnerabilidad).
+```
 
-¿Cómo detener el laboratorio?
-Cuando termines tus pruebas, ejecuta:
+Esto permite simular capturas de tráfico con herramientas como Wireshark para observar datos en texto plano.
 
-Bash
+## Limpieza
+
+Cuando termines las pruebas, detén y elimina el contenedor:
+
+```bash
 docker-compose down
-(Nota: La carpeta mysql_data quedará en tu disco con la información, simulando la persistencia de datos).
+```
+
+> **Nota**: La carpeta `mysql_data` permanecerá en tu disco, simulando la persistencia de datos no cifrados.
+
+## Contribuciones
+
+Si deseas contribuir a este proyecto, por favor abre un issue o envía un pull request en el repositorio.
+
+## Licencia
+
+Este proyecto está bajo la Licencia MIT. Consulta el archivo `LICENSE` para más detalles.
