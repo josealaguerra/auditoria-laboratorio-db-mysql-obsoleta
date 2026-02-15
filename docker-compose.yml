@@ -1,0 +1,33 @@
+# version: '3.8'
+
+services:
+  # Servidor de Base de Datos Vulnerable (H-01)
+  mysql-vulnerable:
+    image: mysql:5.7
+    # Vulnerabilidad: Uso de versión obsoleta (End of Life)
+    container_name: db_ferreteria_audit
+    environment:
+      # Vulnerabilidad: Contraseña débil y predeterminada
+      MYSQL_ROOT_PASSWORD: root
+      # Contexto: Nombre de la base de datos de la ferretería
+      MYSQL_DATABASE: ferreteria_db
+      MYSQL_USER: admin_remoto
+      MYSQL_PASSWORD: password123
+    ports:
+      # Vulnerabilidad: Puerto estándar 3306 expuesto a todos (0.0.0.0)
+      - "3306:3306"
+    volumes:
+      # Persistencia para demostrar la falta de cifrado en disco
+      - ./mysql_data:/var/lib/mysql
+    command: 
+      # Configuración insegura:
+      # 1. Autenticación nativa antigua (fácil de atacar)
+      # 2. Bind-address 0.0.0.0 permite conexiones desde cualquier interfaz
+      --default-authentication-plugin=mysql_native_password
+      --bind-address=0.0.0.0
+    networks:
+      - red_vulnerable
+
+networks:
+  red_vulnerable:
+    driver: bridge
