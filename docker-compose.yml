@@ -6,6 +6,7 @@ services:
     image: mysql:5.7
     # Vulnerabilidad: Uso de versión obsoleta (End of Life)
     container_name: db_ferreteria_audit
+    hostname: db-ferreteria
     environment:
       # Vulnerabilidad: Contraseña débil y predeterminada
       MYSQL_ROOT_PASSWORD: root
@@ -26,8 +27,12 @@ services:
       --default-authentication-plugin=mysql_native_password
       --bind-address=0.0.0.0
     networks:
-      - red_vulnerable
+      red_vulnerable:
+        ipv4_address: 192.168.15.33
 
 networks:
   red_vulnerable:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.15.0/24
