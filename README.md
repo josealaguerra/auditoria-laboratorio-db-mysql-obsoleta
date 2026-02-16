@@ -114,3 +114,18 @@ Si deseas contribuir a este proyecto, por favor abre un issue o envía un pull r
 ## Licencia
 
 Este proyecto está bajo la Licencia MIT. Consulta el archivo `LICENSE` para más detalles.
+
+
+
+
+# Se crea una red en docker
+docker network create red-hacking
+
+# Se busca el ID de las otros contenedores
+docker ps
+
+# Se conecta el ID a la red
+docker network connect red-hacking nombre_del_otro_contenedor
+
+# Se ejecuta kali-linux, con la misma red
+docker run -it --network red-hacking --name mi-kali kalilinux/kali-rolling /bin/bash
